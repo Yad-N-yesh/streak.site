@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Life of Discipline — Habit Tracker</title>
 <style>
-  /* Dark mode & minimalistic styles */
+  /* Dark mode & minimalistic */
   body {
     font-family: 'Segoe UI', sans-serif;
     background: #121212;
@@ -14,26 +14,29 @@
     padding: 0;
   }
 
-  .container {
-    max-width: 900px;
-    margin: auto;
-    padding: 20px;
-  }
-
   h1 {
     text-align: center;
     font-weight: 400;
-    color: #ffffff;
+    color: #fff;
+    margin: 20px 0 10px;
+  }
+
+  .container {
+    width: 100%;
+    padding: 20px;
+    box-sizing: border-box;
   }
 
   .habit-input {
     display: flex;
     gap: 10px;
     margin-bottom: 20px;
+    flex-wrap: wrap;
   }
 
   input[type=text] {
     flex: 1;
+    min-width: 200px;
     padding: 10px;
     font-size: 1em;
     border-radius: 5px;
@@ -52,9 +55,7 @@
     font-weight: bold;
   }
 
-  button:hover {
-    background: #1b5e20;
-  }
+  button:hover { background: #1b5e20; }
 
   .habit {
     background: #1e1e1e;
@@ -77,13 +78,15 @@
     font-size: 0.8em;
   }
 
-  .habit-header button:hover {
-    background: #8e0000;
+  .habit-header button:hover { background: #8e0000; }
+
+  .checks-container {
+    overflow-x: auto;
+    padding-bottom: 5px;
   }
 
   .checks {
     display: flex;
-    overflow-x: auto;
     gap: 5px;
   }
 
@@ -103,35 +106,50 @@
     transition: all 0.2s;
   }
 
-  .check.checked {
-    background: #2e7d32;
-    color: #fff;
-  }
+  .check.checked { background: #2e7d32; color: #fff; }
 
-  .check.today {
-    border: 2px solid #64b5f6;
-  }
+  .check.today { border: 2px solid #64b5f6; }
 
-  .month-label {
-    font-size: 0.6em;
-    color: #aaa;
+  .month-label { font-size: 0.6em; color: #aaa; }
+
+  .top-bar-container {
+    overflow-x: auto;
+    margin-bottom: 10px;
   }
 
   .top-bar {
     display: flex;
-    overflow-x: auto;
     gap: 5px;
-    margin-bottom: 5px;
     font-size: 0.7em;
     text-align: center;
   }
 
-  .day-label {
-    width: 40px;
-    flex-shrink: 0;
+  .day-label { width: 40px; flex-shrink: 0; }
+
+  /* Summary heatmap */
+  .summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    flex-wrap: wrap;
   }
 
-  footer {
+  .heatmap {
+    display: flex;
+    gap: 2px;
+    flex-wrap: wrap;
+  }
+
+  .heat-box {
+    width: 15px;
+    height: 15px;
+    background: #333;
+    border-radius: 2px;
+    transition: background 0.3s;
+  }
+
+  .footer {
     text-align: center;
     margin-top: 30px;
     font-size: 0.8em;
@@ -140,17 +158,28 @@
 </style>
 </head>
 <body>
+<h1>Life of Discipline — Habit Tracker</h1>
 <div class="container">
-  <h1>Life of Discipline — Habit Tracker</h1>
   <div class="habit-input">
     <input type="text" id="newHabit" placeholder="Add new habit...">
     <button onclick="addHabit()">Add</button>
     <button onclick="exportData()">Export</button>
     <input type="file" id="importFile" onchange="importData(event)">
   </div>
-  <div id="topBar" class="top-bar"></div>
+
+  <div class="top-bar-container">
+    <div id="topBar" class="top-bar"></div>
+  </div>
+
   <div id="habits"></div>
-  <footer>All data stays in your browser unless exported.</footer>
+
+  <div class="summary">
+    <div><strong>Completion Heatmap:</strong></div>
+    <div class="heatmap" id="heatmap"></div>
+    <div id="completionPercent"></div>
+  </div>
+
+  <div class="footer">All data stays in your browser unless exported.</div>
 </div>
 
 <script>
@@ -190,6 +219,8 @@ function renderHabits(){
     header.appendChild(del);
     div.appendChild(header);
 
+    const checksContainer = document.createElement('div');
+    checksContainer.className = 'checks-container';
     const checksDiv = document.createElement('div');
     checksDiv.className = 'checks';
 
@@ -218,10 +249,42 @@ function renderHabits(){
       };
       checksDiv.appendChild(check);
     }
-
-    div.appendChild(checksDiv);
+    checksContainer.appendChild(checksDiv);
+    div.appendChild(checksContainer);
     container.appendChild(div);
   });
+
+  renderSummary();
+}
+
+function renderSummary(){
+  const heatmap = document.getElementById('heatmap');
+  const percentDiv = document.getElementById('completionPercent');
+  heatmap.innerHTML = '';
+
+  if(habits.length === 0){
+    percentDiv.textContent = '';
+    return;
+  }
+
+  const totals = Array(30).fill(0);
+  for(let i=29;i>=0;i--){
+    const date = new Date(); date.setDate(date.getDate()-i);
+    const key = todayKey(date);
+    habits.forEach(h=>{ if(h.checks && h.checks[key]) totals[i]++; });
+  }
+
+  totals.forEach(count=>{
+    const box = document.createElement('div');
+    const intensity = count / habits.length;
+    box.className = 'heat-box';
+    box.style.background = `rgba(46,125,50,${0.2 + intensity*0.8})`; // greener = more completion
+    heatmap.appendChild(box);
+  });
+
+  const totalChecks = totals.reduce((a,b)=>a+b,0);
+  const totalPossible = habits.length * 30;
+  percentDiv.textContent = `Completion: ${Math.round(totalChecks/totalPossible*100)}%`;
 }
 
 function addHabit(){
