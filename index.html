@@ -5,41 +5,161 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Life of Discipline — Habit Tracker</title>
 <style>
-  body { font-family: Arial, sans-serif; background: #f5f5f5; color: #333; margin: 0; padding: 0; }
-  .container { max-width: 900px; margin: auto; padding: 20px; }
-  h1 { text-align: center; }
-  .habit-input { display: flex; gap: 10px; margin-bottom: 20px; }
-  input[type=text] { flex: 1; padding: 10px; font-size: 1em; }
-  button { padding: 10px 15px; cursor: pointer; }
-  .habit { background: #fff; padding: 10px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-  .habit-header { display: flex; justify-content: space-between; align-items: center; }
-  .checks { display: flex; overflow-x: auto; gap: 5px; margin-top: 10px; }
-  .check { width: 40px; height: 40px; border: 1px solid #ccc; display: flex; justify-content: center; align-items: center; border-radius: 5px; cursor: pointer; font-size: 0.7em; text-align: center; flex-direction: column; }
-  .checked { background: #4caf50; color: white; }
-  .month-label { font-size: 0.7em; text-align: center; margin-top: 2px; }
-  .top-bar { display: flex; overflow-x: auto; gap: 5px; margin-bottom: 5px; font-size: 0.7em; text-align: center; }
-  .day-label { width: 40px; text-align: center; }
-  footer { text-align: center; margin-top: 30px; font-size: 0.9em; color: #555; }
+  /* Dark mode & minimalistic styles */
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #121212;
+    color: #e0e0e0;
+    margin: 0;
+    padding: 0;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: auto;
+    padding: 20px;
+  }
+
+  h1 {
+    text-align: center;
+    font-weight: 400;
+    color: #ffffff;
+  }
+
+  .habit-input {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  input[type=text] {
+    flex: 1;
+    padding: 10px;
+    font-size: 1em;
+    border-radius: 5px;
+    border: 1px solid #444;
+    background: #1e1e1e;
+    color: #fff;
+  }
+
+  button {
+    padding: 10px 15px;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+    background: #2e7d32;
+    color: white;
+    font-weight: bold;
+  }
+
+  button:hover {
+    background: #1b5e20;
+  }
+
+  .habit {
+    background: #1e1e1e;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  }
+
+  .habit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+  }
+
+  .habit-header button {
+    background: #c62828;
+    padding: 5px 10px;
+    font-size: 0.8em;
+  }
+
+  .habit-header button:hover {
+    background: #8e0000;
+  }
+
+  .checks {
+    display: flex;
+    overflow-x: auto;
+    gap: 5px;
+  }
+
+  .check {
+    width: 40px;
+    height: 40px;
+    border: 1px solid #555;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.7em;
+    text-align: center;
+    flex-direction: column;
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+
+  .check.checked {
+    background: #2e7d32;
+    color: #fff;
+  }
+
+  .check.today {
+    border: 2px solid #64b5f6;
+  }
+
+  .month-label {
+    font-size: 0.6em;
+    color: #aaa;
+  }
+
+  .top-bar {
+    display: flex;
+    overflow-x: auto;
+    gap: 5px;
+    margin-bottom: 5px;
+    font-size: 0.7em;
+    text-align: center;
+  }
+
+  .day-label {
+    width: 40px;
+    flex-shrink: 0;
+  }
+
+  footer {
+    text-align: center;
+    margin-top: 30px;
+    font-size: 0.8em;
+    color: #777;
+  }
 </style>
 </head>
 <body>
 <div class="container">
-<h1>Life of Discipline — Habit Tracker</h1>
-<div class="habit-input">
-  <input type="text" id="newHabit" placeholder="Add new habit...">
-  <button onclick="addHabit()">Add</button>
-  <button onclick="exportData()">Export</button>
-  <input type="file" id="importFile" onchange="importData(event)">
+  <h1>Life of Discipline — Habit Tracker</h1>
+  <div class="habit-input">
+    <input type="text" id="newHabit" placeholder="Add new habit...">
+    <button onclick="addHabit()">Add</button>
+    <button onclick="exportData()">Export</button>
+    <input type="file" id="importFile" onchange="importData(event)">
+  </div>
+  <div id="topBar" class="top-bar"></div>
+  <div id="habits"></div>
+  <footer>All data stays in your browser unless exported.</footer>
 </div>
-<div id="topBar" class="top-bar"></div>
-<div id="habits"></div>
-<footer>All data stays in your browser unless exported.</footer>
-</div>
+
 <script>
 const habits = JSON.parse(localStorage.getItem('habits')) || [];
-function todayKey(date=new Date()){return date.toISOString().slice(0,10);}
-function getMonthName(monthIndex){return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][monthIndex];}
-function getDayName(date){return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][date.getDay()];}
+
+function todayKey(date=new Date()){ return date.toISOString().slice(0,10); }
+function getMonthName(monthIndex){ return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][monthIndex]; }
+function getDayName(date){ return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][date.getDay()]; }
+
 function renderTopBar(){
   const topBar = document.getElementById('topBar');
   topBar.innerHTML = '';
@@ -51,46 +171,100 @@ function renderTopBar(){
     topBar.appendChild(dayDiv);
   }
 }
+
 function renderHabits(){
   const container = document.getElementById('habits');
   container.innerHTML = '';
   habits.forEach((h,index)=>{
     const div = document.createElement('div');
     div.className = 'habit';
+
     const header = document.createElement('div');
     header.className = 'habit-header';
     const title = document.createElement('div');
     title.textContent = h.name;
     const del = document.createElement('button');
     del.textContent = 'Delete';
-    del.onclick = ()=>{habits.splice(index,1); saveHabits(); renderHabits();};
-    header.appendChild(title); header.appendChild(del);
+    del.onclick = ()=>{ habits.splice(index,1); saveHabits(); renderHabits(); };
+    header.appendChild(title);
+    header.appendChild(del);
     div.appendChild(header);
+
     const checksDiv = document.createElement('div');
     checksDiv.className = 'checks';
+
     for(let i=29;i>=0;i--){
       const date = new Date(); date.setDate(date.getDate()-i);
       const key = todayKey(date);
       const day = date.getDate();
       const month = date.getMonth();
+
       const check = document.createElement('div');
       check.className = 'check';
-      if(h.checks && h.checks[key]){check.classList.add('checked'); check.textContent = '✓';}
-      else { check.textContent = day; }
+      if(key === todayKey()) check.classList.add('today');
+      if(h.checks && h.checks[key]){
+        check.classList.add('checked');
+        check.innerHTML = '✓';
+      } else {
+        check.innerHTML = day === 1 ? `${day}<div class="month-label">${getMonthName(month)}</div>` : day;
+      }
+
       check.title = key;
-      check.onclick=()=>{h.checks = h.checks||{}; h.checks[key] ? delete h.checks[key] : h.checks[key]=true; saveHabits(); renderHabits();};
+      check.onclick = ()=>{
+        h.checks = h.checks||{};
+        h.checks[key] ? delete h.checks[key] : h.checks[key]=true;
+        saveHabits();
+        renderHabits();
+      };
       checksDiv.appendChild(check);
-      if(day === 1){ const monthDiv = document.createElement('div'); monthDiv.className = 'month-label'; monthDiv.textContent = getMonthName(month); checksDiv.appendChild(monthDiv); }
     }
+
     div.appendChild(checksDiv);
     container.appendChild(div);
   });
 }
-function addHabit(){const input=document.getElementById('newHabit');const name=input.value.trim(); if(!name)return; habits.push({name,checks:{}}); input.value=''; saveHabits(); renderHabits();}
-function saveHabits(){localStorage.setItem('habits',JSON.stringify(habits));}
-function exportData(){const blob=new Blob([JSON.stringify(habits,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='habits.json'; a.click(); URL.revokeObjectURL(url);}
-function importData(e){const file=e.target.files[0]; if(!file)return; const reader=new FileReader(); reader.onload=ev=>{try{ const data=JSON.parse(ev.target.result); if(Array.isArray(data)){habits.splice(0,habits.length,...data); saveHabits(); renderHabits();} else alert('Invalid format');} catch(err){alert('Import failed:'+err.message);}}; reader.readAsText(file);}
-renderTopBar(); renderHabits();
+
+function addHabit(){
+  const input = document.getElementById('newHabit');
+  const name = input.value.trim();
+  if(!name) return;
+  habits.push({name,checks:{}});
+  input.value = '';
+  saveHabits();
+  renderHabits();
+}
+
+function saveHabits(){ localStorage.setItem('habits',JSON.stringify(habits)); }
+
+function exportData(){
+  const blob = new Blob([JSON.stringify(habits,null,2)],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'habits.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    try{
+      const data = JSON.parse(ev.target.result);
+      if(Array.isArray(data)){
+        habits.splice(0,habits.length,...data);
+        saveHabits();
+        renderHabits();
+      } else alert('Invalid format');
+    } catch(err){ alert('Import failed:'+err.message); }
+  };
+  reader.readAsText(file);
+}
+
+renderTopBar();
+renderHabits();
 </script>
 </body>
 </html>
