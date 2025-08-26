@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Streak</title>
+  <meta name="description" content="A minimal, offline-friendly daily streak tracker." />
+  <style>
+    :root {
+      --bg: #0b0c0f;
+      --panel: #12141a;
+      --text: #e7e9ee;
+      --muted: #97a0b0;
+      --accent: #7c74ff;
+      --accent-2: #2dd4bf;
+      --border: #222634;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --err: #ef4444;
+      --radius: 18px;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f7f7fb;
+        --panel: #ffffff;
+        --text: #0e1116;
+        --muted: #5b6473;
+        --accent: #5b55ff;
+        --accent-2: #0ea5e9;
+        --border: #e6e8f0;
+      }
+    }
+    html, body { height: 100%; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 10% -10%, rgba(124,116,255,0.15), transparent 60%),
+                  radial-gradient(800px 600px at 110% 10%, rgba(45,212,191,0.12), transparent 60%),
+                  var(--bg);
+      color: var(--text);
+      display: grid; place-items: center;
+      padding: 24px;
+    }
+    .card {
+      width: min(680px, 100%);
+      background: color-mix(in oklab, var(--panel), transparent 0%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+      padding: clamp(18px, 3vw, 28px);
+    }
+    header {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      margin-bottom: 8px;
+    }
+    h1 { font-size: clamp(20px, 4vw, 28px); margin: 0; letter-spacing: 0.2px; }
+    .muted { color: var(--muted); font-size: 14px; }
+    .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+    .streak {
+      display: grid; grid-template-columns: auto 1fr; gap: 12px 18px; align-items: end;
+      margin: 18px 0 8px;
+    }
+    .count { font-size: clamp(48px, 11vw, 84px); line-height: 0.95; font-weight: 800; letter-spacing: -1.2px; }
+    .unit { align-self: center; font-size: 14px; color: var(--muted); }
+
+    .buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+    button {
+      appearance: none; border: 1px solid var(--border); background: var(--panel);
+      color: var(--text); border-radius: 14px; padding: 10px 14px; font-weight: 600; cursor: pointer;
+      transition: transform .08s ease, background .2s ease, border-color .2s ease;
+    }
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+    .primary { background: linear-gradient(180deg, color-mix(in oklab, var(--accent), transparent 70%), transparent), var(--panel); border-color: color-mix(in oklab, var(--accent), #000 20%); }
+    .primary:disabled { opacity: .55; cursor: not-allowed; }
+    .ghost { background: transparent; }
+
+    .meta { display: flex; gap: 16px; flex-wrap: wrap; }
+    .badge { border: 1px solid var(--border); padding: 6px 10px; border-radius: 999px; font-size: 13px; color: var(--muted); }
+
+    .grid-wrap { margin-top: 16px; }
+    .grid-head { display:flex; align-items:baseline; justify-content: space-between; margin-bottom: 8px; }
+    .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .cell {
+      aspect-ratio: 1/1; border: 1px solid var(--border); border-radius: 10px; position: relative; background: var(--panel);
+    }
+    .cell.checked { outline: 2px solid color-mix(in oklab, var(--accent-2), transparent 40%); box-shadow: inset 0 0 0 999px color-mix(in oklab, var(--accent-2), transparent 80%); }
+    .cell.today { border-style: dashed; }
+    .cell .dot { position: absolute; inset: 4px; border-radius: 8px; }
+    .legend { display:flex; gap:8px; align-items:center; }
+    .swatch { width:14px; height:14px; border-radius: 4px; border:1px solid var(--border); }
+    .swatch.on { box-shadow: inset 0 0 0 999px color-mix(in oklab, var(--accent-2), transparent 80%); outline: 2px solid color-mix(in oklab, var(--accent-2), transparent 40%); }
+
+    footer { margin-top: 18px; display:flex; justify-content: space-between; align-items:center; flex-wrap: wrap; gap:10px; }
+    a { color: inherit; }
+  </style>
+</head>
+<body>
+  <main class="card" role="application" aria-label="Daily streak tracker">
+    <header>
+      <h1>Streak</h1>
+      <div class="row">
+        <span class="badge" id="tz"></span>
+        <button class="ghost" id="resetBtn" title="Reset streak (local device only)">Reset</button>
+      </div>
+    </header>
+
+    <section class="streak" aria-live="polite">
+      <div class="count" id="count">0</div>
+      <div class="unit">days</div>
+      <div class="meta">
+        <span class="badge">Best: <strong id="best">0</strong></span>
+        <span class="badge">Last check‑in: <span id="last">—</span></span>
+      </div>
+    </section>
+
+    <div class="buttons">
+      <button class="primary" id="checkBtn">Check in for today</button>
+      <button class="ghost" id="undoBtn" title="Undo last check‑in">Undo</button>
+    </div>
+
+    <div class="grid-wrap">
+      <div class="grid-head">
+        <div class="muted">Last 30 days</div>
+        <div class="legend muted">
+          <span class="swatch on"></span> marked
+          <span class="swatch"></span> empty
+        </div>
+      </div>
+      <div class="grid" id="grid" aria-label="Last 30 days heatmap"></div>
+    </div>
+
+    <footer>
+      <small class="muted">Data is stored locally in your browser (no sign‑in).</small>
+      <small class="muted"><a href="#" id="exportLink">Export</a> · <label style="cursor:pointer">Import <input id="importInput" type="file" accept="application/json" hidden></label></small>
+    </footer>
+  </main>
+
+  <script>
+    // --- Utilities ---
+    const fmt = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
+    const tzName = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const DAY_MS = 24 * 60 * 60 * 1000;
+
+    function toKey(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString().slice(0,10); }
+    function todayKey() { return toKey(new Date()); }
+    function yyyymmddToDate(key) { const [y,m,d] = key.split('-').map(Number); return new Date(y, m-1, d); }
+    function diffDays(aKey, bKey) { // b - a
+      const a = yyyymmddToDate(aKey).getTime();
+      const b = yyyymmddToDate(bKey).getTime();
+      return Math.round((b - a) / DAY_MS);
+    }
+
+    // --- State ---
+    const STORE_KEY = 'streak.v1';
+    const defaultState = { count: 0, best: 0, last: null, days: [] }; // days = array of YYYY-MM-DD
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(STORE_KEY);
+        if (!raw) return { ...defaultState };
+        const s = JSON.parse(raw);
+        s.days = Array.isArray(s.days) ? s.days : [];
+        return { ...defaultState, ...s };
+      } catch { return { ...defaultState }; }
+    }
+    function save(state) { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+
+    let state = load();
+
+    // --- UI refs ---
+    const $count = document.getElementById('count');
+    const $best = document.getElementById('best');
+    const $last = document.getElementById('last');
+    const $check = document.getElementById('checkBtn');
+    const $undo = document.getElementById('undoBtn');
+    const $reset = document.getElementById('resetBtn');
+    const $grid = document.getElementById('grid');
+    const $tz = document.getElementById('tz');
+    const $export = document.getElementById('exportLink');
+    const $import = document.getElementById('importInput');
+
+    $tz.textContent = tzName;
+
+    // --- Rendering ---
+    function render() {
+      $count.textContent = state.count;
+      $best.textContent = state.best;
+      $last.textContent = state.last ? fmt.format(yyyymmddToDate(state.last)) : '—';
+
+      const t = todayKey();
+      $check.disabled = state.last === t; // already checked today
+
+      // Grid last 30 days
+      $grid.innerHTML = '';
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(Date.now() - i * DAY_MS);
+        const key = toKey(d);
+        const cell = document.createElement('div');
+        cell.className = 'cell' + (state.days.includes(key) ? ' checked' : '') + (key === t ? ' today' : '');
+        cell.title = `${fmt.format(d)}${key === t ? ' (today)' : ''}`;
+        cell.setAttribute('role', 'img');
+        cell.setAttribute('aria-label', `${fmt.format(d)} ${state.days.includes(key) ? 'marked' : 'empty'}`);
+        $grid.appendChild(cell);
+      }
+    }
+
+    // --- Logic ---
+    function checkIn() {
+      const t = todayKey();
+      if (state.last === t) return; // already marked
+
+      if (!state.last) {
+        state.count = 1;
+      } else {
+        const gap = diffDays(state.last, t); // days since last
+        if (gap === 1) state.count += 1;
+        else if (gap <= 0) state.count = Math.max(state.count, 1); // same/earlier day safety
+        else state.count = 1; // missed days -> reset to 1
+      }
+
+      state.last = t;
+      if (!state.days.includes(t)) state.days.push(t);
+      state.best = Math.max(state.best, state.count);
+      save(state); render();
+    }
+
+    function undo() {
+      // remove today if present; otherwise remove last recorded day
+      if (state.days.length === 0) return;
+      const t = todayKey();
+      const lastKey = state.days[state.days.length - 1];
+      const removedToday = lastKey === t;
+
+      state.days.pop();
+
+      // recompute streak based on remaining days
+      if (state.days.length === 0) {
+        state = { ...defaultState };
+      } else {
+        state.last = state.days[state.days.length - 1];
+        // recompute current streak: count contiguous from last backwards
+        let c = 1;
+        for (let i = state.days.length - 2; i >= 0; i--) {
+          const gap = diffDays(state.days[i], state.days[i + 1]);
+          if (gap === 1) c += 1; else c = 1;
+        }
+        state.count = c;
+        state.best = Math.max(state.best, c);
+      }
+      save(state); render();
+    }
+
+    function resetAll() {
+      if (!confirm('Reset local streak data?')) return;
+      state = { ...defaultState };
+      save(state); render();
+    }
+
+    function exportData() {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'streak-data.json'; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importData(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const s = JSON.parse(e.target.result);
+          if (!('days' in s)) throw new Error('Invalid file');
+          state = { ...defaultState, ...s };
+          save(state); render();
+        } catch (err) { alert('Import failed.'); }
+      };
+      reader.readAsText(file);
+    }
+
+    // --- Events ---
+    $check.addEventListener('click', checkIn);
+    $undo.addEventListener('click', undo);
+    $reset.addEventListener('click', resetAll);
+    $export.addEventListener('click', (e) => { e.preventDefault(); exportData(); });
+    $import.addEventListener('change', (e) => { const f = e.target.files?.[0]; if (f) importData(f); e.target.value = ''; });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkIn(); });
+
+    // First paint
+    render();
+  </script>
+</body>
+</html>
